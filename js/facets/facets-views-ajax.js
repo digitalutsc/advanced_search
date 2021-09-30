@@ -182,6 +182,110 @@
 
       // Remove existing behavior from form.
       if (settings && settings.views && settings.views.ajaxViews) {
+
+        /*************** issue: https://github.com/digitalutsc/advanced_search/issues/6 ********
+         * Inspired by this patch to enable Ajax for Date range slider widget
+         * https://www.drupal.org/files/issues/2020-01-28/fix-slider-ajax-facet.patch
+         **************************************************************************************/
+        var view, current_dom_id, view_path;
+        // Loop through all facets.
+        $.each(settings.facets_views_ajax, function (facetId, facetSettings) {
+          settings.facets = settings.facets || {};
+          // Update view on range slider stop event
+          if (settings.facets.sliders && settings.facets.sliders[facetId]) {
+            settings.facets.sliders[facetId].stop = function (e, ui) {
+              var href = settings.facets.sliders[facetId].url.replace('__range_slider_min__', ui.values[0]).replace('__range_slider_max__', ui.values[1]);
+              $.each(settings.views.ajaxViews, function (domId, viewSettings) {
+                // Check if we have facet for this view.
+                if (facetSettings.view_id == viewSettings.view_name && facetSettings.current_display_id == viewSettings.view_display_id) {
+                  view = $('.js-view-dom-id-' + viewSettings.view_dom_id);
+                  current_dom_id = viewSettings.view_dom_id;
+                  view_path = facetSettings.ajax_path;
+                }
+              });
+              updateFacetsView(href, current_dom_id, view_path);
+            };
+          }
+        });
+
+        // Copy from module facets/js/facets-views-ajax.js
+        // Helper function to update views output & Ajax facets.
+        var updateFacetsView = function (href, current_dom_id, view_path) {
+          // Refresh view.
+          var views_parameters = Drupal.Views.parseQueryString(href);
+          var views_arguments = Drupal.Views.parseViewArgs(href, 'search');
+          var views_settings = $.extend(
+              {},
+              Drupal.views.instances['views_dom_id:' + current_dom_id].settings,
+              views_arguments,
+              views_parameters
+          );
+
+          // Update View.
+          var views_ajax_settings = Drupal.views.instances['views_dom_id:' + current_dom_id].element_settings;
+          views_ajax_settings.submit = views_settings;
+          views_ajax_settings.url = view_path + '?q=' + href;
+
+          Drupal.ajax(views_ajax_settings).execute();
+
+          // Update url.
+          window.historyInitiated = true;
+          window.history.pushState(null, document.title, href);
+
+          // ToDo: Update views+facets with ajax on history back.
+          // For now we will reload the full page.
+          window.addEventListener("popstate", function (e) {
+            if (window.historyInitiated) {
+              window.location.reload();
+            }
+          });
+
+          // Refresh facets blocks.
+          updateFacetsBlocks(href);
+        }
+
+        // Helper function, updates facet blocks.
+        var updateFacetsBlocks = function (href) {
+          var settings = drupalSettings;
+          var facets_blocks = facetsBlocks();
+
+          // Remove All Range Input Form Facet Blocks from being updated.
+          if (settings.facets && settings.facets.rangeInput) {
+            $.each(settings.facets.rangeInput, function (index, value) {
+              delete facets_blocks[value.facetId];
+            });
+          }
+
+          // Update facet blocks.
+          var facet_settings = {
+            url: Drupal.url('facets-block-ajax'),
+            submit: {
+              facet_link: href,
+              facets_blocks: facets_blocks
+            }
+          };
+        };
+
+        // Helper function, return facet blocks.
+        var facetsBlocks = function () {
+          // Get all ajax facets blocks from the current page.
+          var facets_blocks = {};
+
+          $('.block-facets-ajax').each(function (index) {
+            var block_id_start = 'js-facet-block-id-';
+            var block_id = $.map($(this).attr('class').split(' '), function (v, i) {
+              if (v.indexOf(block_id_start) > -1) {
+                return v.slice(block_id_start.length, v.length);
+              }
+            }).join();
+            var block_selector = '#' + $(this).attr('id');
+            facets_blocks[block_id] = block_selector;
+          });
+
+          return facets_blocks;
+        };
+        //////////////////////////////////////////////////////////////////
+
         $.each(settings.views.ajaxViews, function (index, settings) {
           var exposed_form = $(
             "form#views-exposed-form-" +
