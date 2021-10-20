@@ -148,7 +148,10 @@ class AdvancedSearchQuery {
       $backend = $index->getServerInstance()->getBackend();
       $language_ids = $search_api_query->getLanguages();
       $field_mapping = $backend->getSolrFieldNamesKeyedByLanguage($language_ids, $index);
-      $q[] = "{!boost b=boost_document}";
+      
+      // disable for support wildcard 	
+      //$q[] = "{!boost b=boost_document}";
+
       // To support negative queries we must first bring in all documents.
       $q[] = $this->negativeQuery($terms) ? "*:*" : "";
       $term = array_shift($terms);
@@ -159,23 +162,44 @@ class AdvancedSearchQuery {
       }
       $q = implode(' ', $q);
 
-      /** @var Solarium\QueryType\Select\Query\Query $solarium_query */
-      /** @var Solarium\QueryType\Select\Query\Component\DisMax $dismax */
-      // enable dismax search query option
-      $dismax = $solarium_query->getDisMax();
-      $dismax->setQueryParser('edismax');
-      $query_fields = [];
-      foreach ($field_mapping as $key => $field) {
-        foreach ($field as $f => $item) {
-          if (strpos($item, 'sticky') === false) {
-            array_push($query_fields, $item);
+	/** @var Solarium\QueryType\Select\Query\Query $solarium_query */
+      if ((strpos($q, "*") !== false || strpos($q, "?") !== false)) {
+        // enable wildcard
+        $tmp = str_replace('"', "", trim($q));
+        $query_fields = [];
+        foreach ($field_mapping as $key => $field) {
+          foreach ($field as $f => $item) {
+            if (strpos($item, 'sticky') === false && !in_array($item, ['score', 'random', 'boost_document'])
+              && ((strpos( $item, "sm_" ) === 0) || (strpos( $item, "tm_" ) === 0) || (strpos($item, "sort_ss_") === 0) || (strpos($item, "ts_") === 0)
+                || (strpos($item, "ss_") === 0)
+              )){
+              array_push($query_fields, '('.$item. ':'. $tmp .')');
+            }
           }
-
         }
+        $q = implode(" ", array_unique($query_fields));
       }
-      $query_fields = implode(" ", array_unique($query_fields));
-      $dismax->setQueryFields($query_fields);
+      else {
+
+        // enable dismax search query option
+        /** @var Solarium\QueryType\Select\Query\Component\DisMax $dismax */
+        $dismax = $solarium_query->getDisMax();
+        $dismax->setQueryParser('edismax');
+        $query_fields = [];
+        foreach ($field_mapping as $key => $field) {
+          foreach ($field as $f => $item) {
+            if (strpos($item, 'sticky') === false) {
+              array_push($query_fields, $item);
+            }
+          }
+        }
+        $query_fields = implode(" ", array_unique($query_fields));
+        $dismax->setQueryFields($query_fields);
+      }
+
+      print_log($q);
       $solarium_query->setQuery($q);
+
     }
   }
 

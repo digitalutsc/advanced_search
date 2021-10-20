@@ -299,7 +299,7 @@ class SearchResultsPagerBlock extends BlockBase implements ContainerFactoryPlugi
                 ];
             }
         }
-        drupal_log(json_encode($options_attributes));
+        //drupal_log(json_encode($options_attributes));
         return [
             '#type' => 'select',
             '#title' => 'Sort',
