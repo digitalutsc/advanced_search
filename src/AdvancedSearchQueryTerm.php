@@ -289,7 +289,17 @@ class AdvancedSearchQueryTerm {
     }
     else {
       foreach ($solr_field_mapping[$this->field] as $field) {
-        $terms[] = "$field:$value";
+        //$terms[] = "$field:$value";
+
+        // enable wildcard in search by field
+        if (!preg_match("/ /", $value)
+          && (strpos($value, "*") !== false || strpos($value, "?") !== false)) {
+          $tmp = trim($value, '"');
+          $terms[] = "$field:$tmp";
+        }
+        else {
+          $terms[] = "$field:$value";
+        }
       }
     }
     $terms = implode(' ', $terms);
