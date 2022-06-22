@@ -196,7 +196,7 @@ class AdvancedSearchQuery {
 
               // if the field is title, set higher boost factor
               // (TODO: currently hard code, need to find a way to pull the config from Search Api)
-              if (strpos($item, 'title') !== false) {
+              if (strpos($item, 'title') !== false || strpos($item, 'name') !== false) {
                 array_push($query_fields, $item."^13.0");
               }
               else {
@@ -216,7 +216,7 @@ class AdvancedSearchQuery {
         }
         $query_fields = implode(" ", array_unique($query_fields));
         $dismax->setQueryFields($query_fields);
-        //drupal_log($query_fields);
+        drupal_log($query_fields);
       }
       drupal_log($q);
       $solarium_query->setQuery($q);

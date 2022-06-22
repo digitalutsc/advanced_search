@@ -212,7 +212,14 @@ class SearchResultsPagerBlock extends BlockBase implements ContainerFactoryPlugi
    *   A renderable array representing the display links portion of pager.
    */
   protected function buildDisplayLinks(array $query_parameters) {
-    $active_display = $query_parameters['display'] ?? 'grid';
+    $current_path = \Drupal::service('path.current')->getPath();
+    if (strpos($current_path, 'browse-people') !== false) {
+      $active_display = $query_parameters['display'] ?? 'list';
+    }
+    else {
+      $active_display = $query_parameters['display'] ?? 'grid';
+    }
+
     $display_options = [
       'list' => [
         'icon' => 'fa-list',
@@ -269,6 +276,7 @@ class SearchResultsPagerBlock extends BlockBase implements ContainerFactoryPlugi
     $default_value = $default_sort_by . '_' . strtolower($default_order);
     $options = [];
     $options_attributes = [];
+
     // Not sure if this will work without defining a sort per direction.
     foreach ($sort_criteria as $sort) {
       if ($sort->options['exposed'] == TRUE) {
