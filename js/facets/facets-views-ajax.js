@@ -256,6 +256,13 @@
           var option = selection.split('_');
           params.sort_order = option[option.length - 1].toUpperCase();
           params.sort_by = selection.replace("_" + option[option.length - 1], "");
+
+          // Check if the first element is a URL with http or https and remove it
+          var firstKey = Object.keys(params)[0];
+          if (firstKey.startsWith('http') || firstKey.startsWith('https')) {
+            delete params[firstKey];
+          }
+          
           href = href.split("?")[0] + "?" + $.param(params);
           window.history.pushState(null, document.title, href);
         });
